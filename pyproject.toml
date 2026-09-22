@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ai-studio-helpers"
+version = "0.1.0"
+description = "Notebook-friendly helpers for Yandex AI Studio and OpenAI-compatible APIs"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "ipython>=8",
+    "openai>=3.10,<4",
+]
+
+[project.optional-dependencies]
+agents = [
+    "openai-agents>=0.22,<1",
+]
+test = [
+    "openai-agents>=0.22,<1",
+    "pytest>=8",
+    "pytest-asyncio>=1",
+    "tomli>=2; python_version < '3.11'",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/yhelpers"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "live: calls Yandex AI Studio and requires explicit opt-in",
+]
