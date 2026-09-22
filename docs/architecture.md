@@ -33,7 +33,21 @@ HTML; completed content updates the same handle with Markdown.
 Known high-volume deltas are coalesced rather than emitted as individual event
 cards. Other events use concise, HTML-escaped cards. The default selector is a
 coding-agent preset that excludes lifecycle, usage, and unknown protocol noise;
-`events="all"` restores those categories.
+`events="all"` restores those categories. Cards without a status, preview, or
+diagnostic body and streamed sections containing only whitespace are discarded,
+so protocol shells do not produce label-only output.
+
+Presentation styles are semantic rather than tied directly to SDK class names.
+Normal model text uses a larger black style; auxiliary content uses a smaller
+style. Search, generic tools, Code Interpreter, and shell activity have distinct
+style keys. A renderer copies `DEFAULT_COLORMAP` and overlays a caller's partial
+`colormap`, keeping defaults isolated per stream. Completed Markdown includes a
+scoped marker and CSS sibling selector so headings, lists, and fenced code keep
+native Markdown rendering while inheriting the semantic color and font size.
+
+`show_reasoning` is checked after event classification and before selection.
+Consequently it suppresses reasoning regardless of category, exact-name,
+wrapper, or `all` selection without changing stream consumption.
 
 Diagnostic serialization is a separate presentation choice. With
 `show_details=False`, event cards contain short summaries and no JSON blocks.

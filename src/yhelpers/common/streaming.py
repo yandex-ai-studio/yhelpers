@@ -45,12 +45,14 @@ DEFAULT_EVENT_CATEGORIES = frozenset(
     }
 )
 
-_CATEGORY_COLORS = {
-    "text": "#2563eb",
-    "reasoning": "#b45309",
-    "tools": "#0369a1",
-    "search": "#0284c7",
+DEFAULT_COLORMAP = {
+    "text": "#000000",
+    "reasoning": "#9ca3af",
+    "tools": "#2563eb",
+    "search": "#0f766e",
     "code": "#7c3aed",
+    "code_interpreter": "#7c3aed",
+    "shell": "#c2410c",
     "media": "#a21caf",
     "handoffs": "#7c3aed",
     "approvals": "#c2410c",
@@ -183,6 +185,7 @@ class EventSelector:
 @dataclass
 class _Segment:
     category: str
+    style_key: str
     label: str | None
     language: str | None
     text: str = ""
@@ -199,21 +202,45 @@ class NotebookRenderer:
         events: str | Collection[str] | None = None,
         max_chars: int | None = 2000,
         *,
+        colormap: Mapping[str, str] | None = None,
+        show_reasoning: bool = True,
         show_details: bool = False,
     ) -> None:
         if max_chars is not None and (not isinstance(max_chars, int) or max_chars <= 0):
             raise ValueError("max_chars must be a positive integer or None")
         if not isinstance(show_details, bool):
             raise TypeError("show_details must be a bool")
+        if not isinstance(show_reasoning, bool):
+            raise TypeError("show_reasoning must be a bool")
+        if colormap is not None and not isinstance(colormap, Mapping):
+            raise TypeError("colormap must be a mapping or None")
+        colors = dict(DEFAULT_COLORMAP)
+        if colormap is not None:
+            unknown = set(colormap) - set(DEFAULT_COLORMAP)
+            if unknown:
+                names = ", ".join(sorted(str(name) for name in unknown))
+                raise ValueError(f"unknown colormap field(s): {names}")
+            for name, color in colormap.items():
+                if not isinstance(color, str) or not color.strip():
+                    raise TypeError("colormap values must be non-empty strings")
+                colors[name] = color.strip()
         self.selector = EventSelector(events)
         self.max_chars = max_chars
+        self.colormap = colors
+        self.show_reasoning = show_reasoning
         self.show_details = show_details
+        self._style_marker = f"yhelpers-stream-{id(self):x}"
         self._segments: dict[tuple[Any, ...], _Segment] = {}
         self._response_serial = 0
         self._seen_tool_items: set[str] = set()
         self.saw_output_text = False
 
     def enabled(self, categories: str | Collection[str], *event_names: str) -> bool:
+        category_names = (
+            {categories} if isinstance(categories, str) else set(categories)
+        )
+        if not self.show_reasoning and "reasoning" in category_names:
+            return False
         return self.selector.enabled(categories, *event_names)
 
     def process_response_event(
@@ -302,12 +329,14 @@ class NotebookRenderer:
         if compact is None:
             return None
         label, summary = compact
+        primary = self.primary_category(categories)
         self.event_card(
             label,
             event_type,
             event,
-            self.primary_category(categories),
+            primary,
             summary=summary,
+            style_key=self.style_key(primary, event_type, item_type),
         )
         if event_type == "response.output_item.done" and item_type in _TOOL_ITEM_TYPES:
             identity = self._tool_identity(item)
@@ -359,12 +388,14 @@ class NotebookRenderer:
             raw,
             raw_type,
         )
+        primary = self.primary_category(categories)
         self.event_card(
             label,
             event_name,
             payload,
-            self.primary_category(categories),
+            primary,
             summary=summary,
+            style_key=self.style_key(primary, event_name, item_type, raw_type),
         )
 
     @staticmethod
@@ -437,11 +468,16 @@ class NotebookRenderer:
         ):
             return
         if isinstance(value, str):
-            display(Markdown(value))
+            if not value.strip():
+                return
+            display(self._styled_markdown(value, "text"))
             self.saw_output_text = True
             return
         display(
-            Markdown(self.fenced(self._json_text(value), "json", label="Final output"))
+            self._styled_markdown(
+                self.fenced(self._json_text(value), "json", label="Final output"),
+                "text",
+            )
         )
         self.saw_output_text = True
 
@@ -468,8 +504,10 @@ class NotebookRenderer:
         category: str,
         *,
         summary: str | None = None,
+        style_key: str | None = None,
     ) -> None:
-        color = _CATEGORY_COLORS.get(category, _CATEGORY_COLORS["unknown"])
+        style_key = style_key or self.style_key(category, event_name)
+        color = self.colormap.get(style_key, self.colormap["unknown"])
         safe_label = html.escape(label)
         compact = self._truncate_compact(summary or "")
         inline = f" <span>{html.escape(compact)}</span>" if compact else ""
@@ -487,13 +525,29 @@ class NotebookRenderer:
                     "word-break:break-word'>"
                     f"{html.escape(details)}</pre>"
                 )
+        if not compact and not body:
+            return
         display(
             HTML(
-                f"<div style='border-left:3px solid {color};padding:0.3rem 0.65rem;"
-                "margin:0.3rem 0'>"
+                f"<div style='border-left:3px solid {color};color:{color};"
+                "padding:0.3rem 0.65rem;"
+                "margin:0.3rem 0;font-size:0.875rem;line-height:1.4'>"
                 f"<strong>{safe_label}</strong>{inline}{event_tag}{body}</div>"
             )
         )
+
+    @staticmethod
+    def style_key(category: str, *names: str) -> str:
+        """Return the most specific colormap key for an event or segment."""
+
+        value = " ".join(names).lower()
+        if "code_interpreter" in value:
+            return "code_interpreter"
+        if "shell" in value:
+            return "shell"
+        if any(name in value for name in ("web_search", "file_search", "tool_search")):
+            return "search"
+        return category
 
     @staticmethod
     def categories_for_response_event(event_type: str) -> frozenset[str]:
@@ -609,7 +663,10 @@ class NotebookRenderer:
         names: tuple[str, ...],
     ) -> None:
         key = self._segment_key(family, event)
-        segment = self._segments.setdefault(key, _Segment(category, label, language))
+        style_key = self.style_key(category, family)
+        segment = self._segments.setdefault(
+            key, _Segment(category, style_key, label, language)
+        )
         segment.text += delta
         can_render = language != "json" or self.show_details
         segment.visible = segment.visible or (
@@ -617,7 +674,7 @@ class NotebookRenderer:
         )
         if family == "response.output_text.delta":
             self.saw_output_text = True
-        if segment.visible:
+        if segment.visible and segment.text.strip():
             self._update_live(segment)
 
     def _finish_segment(
@@ -631,7 +688,10 @@ class NotebookRenderer:
         names: tuple[str, ...],
     ) -> None:
         key = self._segment_key(family, event)
-        segment = self._segments.setdefault(key, _Segment(category, label, language))
+        style_key = self.style_key(category, family)
+        segment = self._segments.setdefault(
+            key, _Segment(category, style_key, label, language)
+        )
         if value is not None:
             segment.text = value
         can_render = language != "json" or self.show_details
@@ -646,8 +706,11 @@ class NotebookRenderer:
         label = (
             f"<strong>{html.escape(segment.label)}</strong>" if segment.label else ""
         )
+        color = self.colormap.get(segment.style_key, self.colormap["unknown"])
+        font_size = "1.05rem" if segment.category == "text" else "0.875rem"
         obj = HTML(
-            f"<div style='border-left:3px solid {_CATEGORY_COLORS.get(segment.category, '#64748b')};"
+            f"<div style='border-left:3px solid {color};color:{color};"
+            f"font-size:{font_size};line-height:1.5;"
             "padding:0.35rem 0.65rem;margin:0.35rem 0'>"
             f"{label}<pre style='margin:0;white-space:pre-wrap;word-break:break-word'>"
             f"{html.escape(segment.text)}</pre></div>"
@@ -665,6 +728,8 @@ class NotebookRenderer:
         if not segment.visible:
             return
         text = segment.text
+        if not text.strip():
+            return
         if segment.language == "json":
             text = self._pretty_json_string(text)
         if segment.language:
@@ -673,11 +738,25 @@ class NotebookRenderer:
             rendered = f"**{segment.label}**\n\n{text}"
         else:
             rendered = text
-        obj = Markdown(rendered)
+        obj = self._styled_markdown(rendered, segment.style_key)
         if segment.handle is not None and hasattr(segment.handle, "update"):
             segment.handle.update(obj)
         else:
             display(obj)
+
+    def _styled_markdown(self, rendered: str, style_key: str) -> Markdown:
+        color = html.escape(
+            self.colormap.get(style_key, self.colormap["unknown"]), quote=True
+        )
+        font_size = "1.05rem" if style_key == "text" else "0.875rem"
+        marker = f"{self._style_marker}-{style_key.replace('_', '-')}"
+        selector = f".{marker} ~ *"
+        prefix = (
+            f"<style>{selector}{{color:{color};font-size:{font_size};"
+            "line-height:1.5}}</style>"
+            f"<div class='{marker}' style='display:none'></div>"
+        )
+        return Markdown(f"{prefix}\n\n{rendered}")
 
     def _finalize_matching(self, event: Any) -> None:
         item_id = getattr(event, "item_id", None)
@@ -781,6 +860,8 @@ class NotebookRenderer:
         raw: Any,
         raw_type: str,
     ) -> tuple[str, str | None]:
+        if event_name == "message_output_created":
+            return label, "completed"
         if event_name == "tool_called":
             return self._tool_label(raw_type), self._tool_summary(raw, raw_type)
         if event_name in {"tool_output", "tool_search_output_created"}:
@@ -861,12 +942,26 @@ class NotebookRenderer:
     def _scalar_summary(self, payload: Any) -> str | None:
         data = _object_mapping(payload)
         values: list[str] = []
-        for key in ("message", "name", "status", "query", "item_id", "output_index"):
+        for key in (
+            "message",
+            "name",
+            "status",
+            "query",
+            "value",
+            "item_id",
+            "output_index",
+        ):
             value = data.get(key)
             if value not in (None, ""):
                 values.append(f"{key}={self._compact_value(value)}")
             if len(values) == 3:
                 break
+        if not values and data.get("response") is not None:
+            response = _object_mapping(data["response"])
+            for key in ("status", "id"):
+                value = response.get(key)
+                if value not in (None, ""):
+                    values.append(f"{key}={self._compact_value(value)}")
         return " · ".join(values) or None
 
     def _compact_value(self, value: Any) -> str:
@@ -899,10 +994,14 @@ class NotebookRenderer:
         error = getattr(response, "error", None)
         incomplete = getattr(response, "incomplete_details", None)
         value = error or incomplete
-        if value is None:
-            return None
-        message = getattr(value, "message", None) or getattr(value, "reason", None)
-        return str(message or value)
+        if value is not None:
+            message = getattr(value, "message", None) or getattr(value, "reason", None)
+            return str(message or value)
+        status = getattr(response, "status", None)
+        response_id = getattr(response, "id", None)
+        if status is not None:
+            return str(status)
+        return str(response_id) if response_id is not None else None
 
     @staticmethod
     def _usage_summary(usage: Any) -> str | None:
@@ -1058,6 +1157,7 @@ def _safe_value(value: Any, *, depth: int = 0) -> Any:
 
 
 __all__ = [
+    "DEFAULT_COLORMAP",
     "DEFAULT_EVENT_CATEGORIES",
     "EVENT_CATEGORIES",
     "EventSelector",

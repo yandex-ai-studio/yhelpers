@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable
+from collections.abc import Collection, Iterable, Mapping
 from typing import TYPE_CHECKING, Any, cast
 
 from yhelpers.common.streaming import NotebookRenderer
@@ -16,19 +16,25 @@ def jstream(
     *,
     events: str | Collection[str] | None = None,
     max_chars: int | None = 2000,
+    colormap: Mapping[str, str] | None = None,
+    show_reasoning: bool = True,
     show_details: bool = False,
 ) -> Response:
     """Consume a raw Responses API stream and render it in a Jupyter notebook.
 
     Pass the iterator returned by ``client.responses.create(..., stream=True)``.
     ``events=None`` uses the compact coding-agent preset; use ``events="all"``
-    with ``show_details=True`` for protocol names and diagnostic JSON. The
-    terminal ``Response`` is returned after the iterator has been exhausted.
+    with ``show_details=True`` for protocol names and diagnostic JSON.
+    ``show_reasoning=False`` hides reasoning, while a partial ``colormap``
+    overrides selected semantic colors. The terminal ``Response`` is returned
+    after the iterator has been exhausted.
     """
 
     renderer = NotebookRenderer(
         events=events,
         max_chars=max_chars,
+        colormap=colormap,
+        show_reasoning=show_reasoning,
         show_details=show_details,
     )
     terminal_response: Any = None

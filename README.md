@@ -8,7 +8,9 @@ arrives and is replaced in place with rendered Markdown when the corresponding
 delta section completes. The default view resembles a coding-agent transcript:
 answers, tool/search progress, generated code, results, approvals, and errors
 are visible, while protocol lifecycle events, usage accounting, and JSON
-payloads stay hidden until requested.
+payloads stay hidden until requested. Model answers use slightly larger black
+type; reasoning is light gray; and tool, search, Code Interpreter, and shell
+activity use distinct compact styles. Empty label-only blocks are omitted.
 
 ## Installation
 
@@ -88,6 +90,7 @@ names and bounded JSON payloads only while diagnosing an integration:
 response = jstream(
     stream,
     events="all",
+    show_reasoning=False,
     show_details=True,
     max_chars=1000,
 )
@@ -95,6 +98,28 @@ response = jstream(
 
 Auxiliary payloads are limited to 2,000 characters by default; model text and
 streamed code are not truncated. Use `max_chars=None` for complete diagnostics.
+`show_reasoning=False` suppresses reasoning even if `events="all"` or an exact
+reasoning event name was selected.
+
+Override any subset of the display colors with `colormap`; unspecified fields
+retain their defaults:
+
+```python
+response = jstream(
+    stream,
+    colormap={
+        "reasoning": "#b8b8b8",
+        "tools": "#2563eb",
+        "search": "#0f766e",
+        "code_interpreter": "#7c3aed",
+        "shell": "#c2410c",
+    },
+)
+```
+
+The remaining color keys are `text`, `code`, `media`, `handoffs`, `approvals`,
+`lifecycle`, `usage`, `errors`, and `unknown`. See the function reference for
+the complete default map.
 
 The [Responses notebook](examples/streaming/responses.ipynb) demonstrates Web
 Search, Code Interpreter, category filtering, silent consumption, and detailed

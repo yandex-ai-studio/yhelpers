@@ -21,3 +21,9 @@
   combined Agents run using Web Search, File Search, and Code Interpreter.
 - Expanded both example notebooks with explicit hosted-tool prompts and compact,
   filtered, silent, and diagnostic streaming modes.
+- Improved transcript readability with larger black model output, smaller
+  auxiliary blocks, light-gray reasoning, and distinct colors for tool calls,
+  search, Code Interpreter, and shell activity.
+- Added a partial `colormap` override and a `show_reasoning` switch to both
+  streaming helpers.
+- Suppressed label-only cards and whitespace-only streamed blocks.

@@ -60,7 +60,9 @@ def test_text_delta_becomes_markdown_and_returns_response(display_capture):
     handle = display_capture.handles[0]
     assert isinstance(handle.updates[0], HTML)
     assert isinstance(handle.updates[-1], Markdown)
-    assert handle.updates[-1].data == "# Hello\n\n**world**"
+    assert handle.updates[-1].data.endswith("# Hello\n\n**world**")
+    assert "color:#000000" in handle.updates[-1].data
+    assert "font-size:1.05rem" in handle.updates[-1].data
     assert not any(
         "Response completed" in call.value.data for call in display_capture.calls
     )
@@ -288,6 +290,14 @@ def test_validation_errors():
         jstream([], events={1})
     with pytest.raises(TypeError, match="show_details"):
         jstream([], show_details=1)
+    with pytest.raises(TypeError, match="show_reasoning"):
+        jstream([], show_reasoning=1)
+    with pytest.raises(TypeError, match="colormap"):
+        jstream([], colormap=[])
+    with pytest.raises(ValueError, match="unknown colormap"):
+        jstream([], colormap={"not_a_category": "red"})
+    with pytest.raises(TypeError, match="colormap values"):
+        jstream([], colormap={"text": ""})
 
 
 def test_default_tool_output_is_compact_and_deduplicated(display_capture):
@@ -346,5 +356,160 @@ def test_function_arguments_are_hidden_by_default(display_capture):
             ),
             completed(),
         ]
+    )
+    assert display_capture.calls == []
+
+
+def test_reasoning_can_be_hidden_even_when_explicitly_selected(display_capture):
+    jstream(
+        [
+            event(
+                "response.reasoning_text.delta",
+                item_id="reasoning_1",
+                output_index=0,
+                content_index=0,
+                delta="Private chain",
+            ),
+            event(
+                "response.reasoning_text.done",
+                item_id="reasoning_1",
+                output_index=0,
+                content_index=0,
+                text="Private chain",
+            ),
+            event(
+                "response.output_text.delta",
+                item_id="message_1",
+                output_index=1,
+                content_index=0,
+                delta="Visible answer",
+            ),
+            event(
+                "response.output_text.done",
+                item_id="message_1",
+                output_index=1,
+                content_index=0,
+                text="Visible answer",
+            ),
+            completed(),
+        ],
+        events={"reasoning", "text"},
+        show_reasoning=False,
+    )
+
+    assert len(display_capture.handles) == 1
+    assert "Visible answer" in display_capture.handles[0].updates[-1].data
+    assert all(
+        "Private chain" not in getattr(call.value, "data", "")
+        for call in display_capture.calls
+    )
+
+
+def test_reasoning_uses_light_gray_and_smaller_type_by_default(display_capture):
+    jstream(
+        [
+            event(
+                "response.reasoning_text.delta",
+                item_id="reasoning_1",
+                output_index=0,
+                content_index=0,
+                delta="Check the inputs",
+            ),
+            event(
+                "response.reasoning_text.done",
+                item_id="reasoning_1",
+                output_index=0,
+                content_index=0,
+                text="Check the inputs",
+            ),
+            completed(),
+        ],
+        events={"reasoning"},
+    )
+
+    handle = display_capture.handles[0]
+    assert "color:#9ca3af" in handle.updates[0].data
+    assert "font-size:0.875rem" in handle.updates[0].data
+    assert "color:#9ca3af" in handle.updates[-1].data
+
+
+def test_partial_colormap_merges_defaults_and_distinguishes_tools(display_capture):
+    function = SimpleNamespace(
+        type="function_call",
+        id="function_1",
+        name="lookup",
+        arguments="{}",
+        status="completed",
+    )
+    jstream(
+        [
+            event("response.output_item.done", output_index=0, item=function),
+            event("response.web_search_call.searching", item_id="search_1"),
+            event(
+                "response.code_interpreter_call_code.delta",
+                item_id="code_1",
+                output_index=1,
+                delta="print(1)",
+            ),
+            event(
+                "response.code_interpreter_call_code.done",
+                item_id="code_1",
+                output_index=1,
+                code="print(1)",
+            ),
+            event(
+                "response.shell_call_command.delta",
+                item_id="shell_1",
+                output_index=2,
+                command_index=0,
+                delta="pwd",
+            ),
+            event(
+                "response.shell_call_command.done",
+                item_id="shell_1",
+                output_index=2,
+                command_index=0,
+                command="pwd",
+            ),
+            completed(),
+        ],
+        colormap={
+            "tools": "#111111",
+            "code_interpreter": "#333333",
+            "shell": "#444444",
+        },
+    )
+
+    html_values = [
+        call.value.data
+        for call in display_capture.calls
+        if isinstance(call.value, HTML)
+    ]
+    assert any("#111111" in value and "lookup" in value for value in html_values)
+    assert any("#0f766e" in value and "searching" in value for value in html_values)
+    assert any("#333333" in value and "print(1)" in value for value in html_values)
+    assert any("#444444" in value and "pwd" in value for value in html_values)
+
+
+def test_whitespace_only_segment_is_not_displayed(display_capture):
+    jstream(
+        [
+            event(
+                "response.reasoning_text.delta",
+                item_id="reasoning_1",
+                output_index=0,
+                content_index=0,
+                delta="   ",
+            ),
+            event(
+                "response.reasoning_text.done",
+                item_id="reasoning_1",
+                output_index=0,
+                content_index=0,
+                text="   ",
+            ),
+            completed(),
+        ],
+        events={"reasoning"},
     )
     assert display_capture.calls == []

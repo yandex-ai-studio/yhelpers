@@ -95,7 +95,7 @@ async def test_tool_item_does_not_serialize_full_agent(display_capture):
     )
     result = FakeResult(
         [event("run_item_stream_event", name="tool_called", item=item)],
-        final_output=None,
+        final_output="   ",
     )
     await jstream(result, events={"tools"})
     rendered = display_capture.calls[0].value.data
@@ -183,8 +183,38 @@ async def test_agent_item_categories(display_capture, name, item_type, category)
     result = FakeResult(
         [event("run_item_stream_event", name=name, item=item)], final_output=None
     )
-    await jstream(result, events={category})
+    await jstream(result, events={category}, show_details=True)
     assert display_capture.calls
+
+
+@pytest.mark.asyncio
+async def test_empty_label_only_agent_item_is_ignored(display_capture):
+    item = SimpleNamespace(
+        type="tool_call_item",
+        raw_item=SimpleNamespace(type="tool_call_item"),
+    )
+    result = FakeResult(
+        [event("run_item_stream_event", name="tool_called", item=item)],
+        final_output=None,
+    )
+
+    await jstream(result, events={"tools"})
+    assert display_capture.calls == []
+
+
+@pytest.mark.asyncio
+async def test_agents_show_reasoning_flag_is_forwarded(display_capture):
+    item = SimpleNamespace(
+        type="reasoning_item",
+        raw_item=SimpleNamespace(type="reasoning_item", summary=["hidden"]),
+    )
+    result = FakeResult(
+        [event("run_item_stream_event", name="reasoning_item_created", item=item)],
+        final_output=None,
+    )
+
+    await jstream(result, events={"reasoning"}, show_reasoning=False)
+    assert display_capture.calls == []
 
 
 @pytest.mark.asyncio

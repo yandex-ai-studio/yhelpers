@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 from typing import TYPE_CHECKING
 
 from yhelpers.common.streaming import NotebookRenderer
@@ -24,17 +24,23 @@ async def jstream(
     *,
     events: str | Collection[str] | None = None,
     max_chars: int | None = 2000,
+    colormap: Mapping[str, str] | None = None,
+    show_reasoning: bool = True,
     show_details: bool = False,
 ) -> RunResultStreaming:
     """Consume and render an Agents SDK ``RunResultStreaming`` in Jupyter.
 
     ``events=None`` uses the compact coding-agent preset; use ``events="all"``
     with ``show_details=True`` for protocol names and diagnostic JSON.
+    ``show_reasoning=False`` hides reasoning, while a partial ``colormap``
+    overrides selected semantic colors.
     """
 
     renderer = NotebookRenderer(
         events=events,
         max_chars=max_chars,
+        colormap=colormap,
+        show_reasoning=show_reasoning,
         show_details=show_details,
     )
     try:
