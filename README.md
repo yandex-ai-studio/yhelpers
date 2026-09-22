@@ -1,4 +1,4 @@
-# AI Studio Helpers
+# YHelpers
 
 Small helpers for using Yandex AI Studio, the OpenAI-compatible Responses API,
 and the OpenAI Agents SDK from Python notebooks.
@@ -15,13 +15,13 @@ payloads stay hidden until requested.
 Install the Responses API helper directly from Git:
 
 ```bash
-pip install "ai-studio-helpers @ git+https://github.com/yandex-ai-studio/ai-studio-helpers.git"
+pip install "yhelpers @ git+https://github.com/yandex-ai-studio/yhelpers.git"
 ```
 
 Install the optional OpenAI Agents SDK support:
 
 ```bash
-pip install "ai-studio-helpers[agents] @ git+https://github.com/yandex-ai-studio/ai-studio-helpers.git"
+pip install "yhelpers[agents] @ git+https://github.com/yandex-ai-studio/yhelpers.git"
 ```
 
 The import namespace is `yhelpers`.

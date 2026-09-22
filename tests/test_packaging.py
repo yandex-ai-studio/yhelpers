@@ -12,6 +12,11 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10
 ROOT = Path(__file__).parents[1]
 
 
+def test_distribution_name_matches_import_namespace():
+    config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert config["project"]["name"] == "yhelpers"
+
+
 def test_agents_is_an_optional_dependency():
     config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     assert not any(
@@ -41,6 +46,7 @@ try:
     import yhelpers.agents.streaming
 except ImportError as error:
     assert "optional Agents SDK dependency" in str(error)
+    assert "yhelpers[agents]" in str(error)
 else:
     raise AssertionError("import unexpectedly succeeded")
 """

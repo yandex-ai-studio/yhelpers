@@ -36,7 +36,7 @@ Consumes `result.stream_events()` until it settles and returns the same result
 object. Pending approval interruptions are displayed after streaming. A
 non-null `run_loop_exception` is displayed and raised.
 
-Install the optional dependency with `pip install "ai-studio-helpers[agents]"`.
+Install the optional dependency with `pip install "yhelpers[agents]"`.
 
 ## Parameters
 

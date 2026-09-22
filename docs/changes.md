@@ -2,6 +2,8 @@
 
 ## 0.1.0
 
+- Renamed the repository and Python distribution from `ai-studio-helpers` to
+  `yhelpers`; the import namespace remains `yhelpers`.
 - Added `yhelpers.responses.streaming.jstream` for rich display of raw
   Responses API streams in Jupyter notebooks.
 - Added optional `yhelpers.agents.streaming.jstream` support for OpenAI Agents

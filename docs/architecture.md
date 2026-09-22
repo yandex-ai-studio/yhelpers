@@ -2,11 +2,12 @@
 
 ## Package layout
 
-The project uses a `src` layout. Public integrations live in
+The distribution and import namespace are both named `yhelpers`. The project
+uses a `src` layout. Public integrations live in
 `yhelpers.responses.streaming` and `yhelpers.agents.streaming`; shared notebook
 rendering lives in `yhelpers.common.streaming`.
 
-The wheel includes only `src/yhelpers`. Repository documentation, tests, and
+The `yhelpers` wheel includes only `src/yhelpers`. Repository documentation, tests, and
 example notebooks are deliberately excluded from installation.
 
 ## Stream ownership

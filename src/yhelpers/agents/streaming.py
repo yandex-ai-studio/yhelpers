@@ -12,7 +12,7 @@ try:
 except ImportError as error:  # pragma: no cover - exercised in an isolated install test
     raise ImportError(
         "yhelpers.agents requires the optional Agents SDK dependency. "
-        "Install it with: pip install 'ai-studio-helpers[agents]'"
+        "Install it with: pip install 'yhelpers[agents]'"
     ) from error
 
 if TYPE_CHECKING:

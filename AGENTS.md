@@ -1,4 +1,4 @@
-## AI Studio Helpers
+## YHelpers
 
 This directory contains a library with miscellaneous helper functions that can be used together with Yandex AI Studio, OpenAI Responses API and OpenAI Agents SDK.
 

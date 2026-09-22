@@ -3,7 +3,7 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ai-studio-helpers"
+name = "yhelpers"
 version = "0.1.0"
 description = "Notebook-friendly helpers for Yandex AI Studio and OpenAI-compatible APIs"
 readme = "README.md"
