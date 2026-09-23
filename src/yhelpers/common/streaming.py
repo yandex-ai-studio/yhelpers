@@ -538,7 +538,7 @@ class NotebookRenderer:
             HTML(
                 f"<div style='border-left:3px solid {color};color:{color};"
                 "padding:0.3rem 0.65rem;"
-                "margin:0.3rem 0;font-size:0.875rem;line-height:1.4'>"
+                "margin:0.3rem 0;line-height:1.4'>"
                 f"<strong>{safe_label}</strong>{inline}{event_tag}{body}</div>"
             )
         )
@@ -714,10 +714,9 @@ class NotebookRenderer:
             f"<strong>{html.escape(segment.label)}</strong>" if segment.label else ""
         )
         color = self.colormap.get(segment.style_key, self.colormap["unknown"])
-        font_size = "1.05rem" if segment.category == "text" else "0.875rem"
         obj = HTML(
             f"<div style='border-left:3px solid {color};color:{color};"
-            f"font-size:{font_size};line-height:1.5;"
+            "line-height:1.5;"
             "padding:0.35rem 0.65rem;margin:0.35rem 0'>"
             f"{label}<pre style='margin:0;white-space:pre-wrap;word-break:break-word'>"
             f"{html.escape(segment.text)}</pre></div>"
@@ -755,12 +754,10 @@ class NotebookRenderer:
         color = html.escape(
             self.colormap.get(style_key, self.colormap["unknown"]), quote=True
         )
-        font_size = "1.05rem" if style_key == "text" else "0.875rem"
         marker = f"{self._style_marker}-{style_key.replace('_', '-')}"
         selector = f".{marker} ~ *"
         prefix = (
-            f"<style>{selector}{{color:{color};font-size:{font_size};"
-            "line-height:1.5}}</style>"
+            f"<style>{selector}{{color:{color};line-height:1.5}}</style>"
             f"<div class='{marker}' style='display:none'></div>"
         )
         return Markdown(f"{prefix}\n\n{rendered}")

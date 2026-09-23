@@ -62,7 +62,8 @@ def test_text_delta_becomes_markdown_and_returns_response(display_capture):
     assert isinstance(handle.updates[-1], Markdown)
     assert handle.updates[-1].data.endswith("# Hello\n\n**world**")
     assert "color:#000000" in handle.updates[-1].data
-    assert "font-size:1.05rem" in handle.updates[-1].data
+    assert "font-size" not in handle.updates[0].data
+    assert "font-size" not in handle.updates[-1].data
     assert not any(
         "Response completed" in call.value.data for call in display_capture.calls
     )
@@ -434,7 +435,7 @@ def test_reasoning_can_be_hidden_even_when_explicitly_selected(display_capture):
     )
 
 
-def test_reasoning_uses_light_gray_and_smaller_type_by_default(display_capture):
+def test_reasoning_uses_light_gray_without_changing_font_size(display_capture):
     jstream(
         [
             event(
@@ -458,8 +459,8 @@ def test_reasoning_uses_light_gray_and_smaller_type_by_default(display_capture):
 
     handle = display_capture.handles[0]
     assert "color:#9ca3af" in handle.updates[0].data
-    assert "font-size:0.875rem" in handle.updates[0].data
     assert "color:#9ca3af" in handle.updates[-1].data
+    assert all("font-size" not in value.data for value in handle.updates)
 
 
 def test_partial_colormap_merges_defaults_and_distinguishes_tools(display_capture):
@@ -529,6 +530,7 @@ def test_partial_colormap_merges_defaults_and_distinguishes_tools(display_captur
     )
     assert any("#333333" in value and "print(1)" in value for value in html_values)
     assert any("#444444" in value and "pwd" in value for value in html_values)
+    assert all("font-size" not in value for value in html_values)
 
 
 def test_whitespace_only_segment_is_not_displayed(display_capture):

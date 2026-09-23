@@ -47,12 +47,12 @@ events are likewise diagnostic-only. The compact view retains the generated
 source and execution outputs, which contain the actionable information.
 
 Presentation styles are semantic rather than tied directly to SDK class names.
-Normal model text uses a larger black style; auxiliary content uses a smaller
-style. Search, generic tools, Code Interpreter, and shell activity have distinct
-style keys. A renderer copies `DEFAULT_COLORMAP` and overlays a caller's partial
-`colormap`, keeping defaults isolated per stream. Completed Markdown includes a
-scoped marker and CSS sibling selector so headings, lists, and fenced code keep
-native Markdown rendering while inheriting the semantic color and font size.
+Model text, reasoning, search, generic tools, Code Interpreter, and shell
+activity have distinct color keys, but the renderer never overrides font size.
+A renderer copies `DEFAULT_COLORMAP` and overlays a caller's partial `colormap`,
+keeping defaults isolated per stream. Completed Markdown includes a scoped
+marker and CSS sibling selector so headings, lists, and fenced code keep native
+Markdown rendering while inheriting the semantic color.
 
 `show_reasoning` is checked after event classification and before selection.
 Consequently it suppresses reasoning regardless of category, exact-name,

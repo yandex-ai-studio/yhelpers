@@ -17,6 +17,18 @@ def test_distribution_name_matches_import_namespace():
     assert config["project"]["name"] == "yhelpers"
 
 
+def test_distribution_and_package_versions_match():
+    from yhelpers import __version__
+
+    config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    lock = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
+    locked_package = next(
+        package for package in lock["package"] if package["name"] == "yhelpers"
+    )
+    assert config["project"]["version"] == __version__ == "0.1.1"
+    assert locked_package["version"] == __version__
+
+
 def test_agents_is_an_optional_dependency():
     config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     assert not any(

@@ -141,9 +141,8 @@ only when details are enabled.
 
 - Output text starts in an escaped `<pre>` display and updates in place.
 - A matching `done` event replaces that display with rendered Markdown.
-- Model output is black and uses `1.05rem` type. Reasoning, tool activity, and
-  other event cards use compact `0.875rem` type. Reasoning is light gray by
-  default.
+- Model output is black and reasoning is light gray by default. The renderer
+  does not set font sizes; all blocks inherit the notebook's typography.
 - Tool calls, search activity, Code Interpreter, and shell activity resolve to
   separate color-map keys.
 - Label-only cards and whitespace-only streamed sections are not displayed.
