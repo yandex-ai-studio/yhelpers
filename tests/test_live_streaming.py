@@ -7,7 +7,7 @@ from io import BytesIO
 from typing import Any
 
 import pytest
-from IPython.display import HTML
+from IPython.display import HTML, Markdown
 
 pytestmark = pytest.mark.live
 
@@ -125,6 +125,18 @@ def assert_compact_default(display_capture) -> None:
     assert all("&quot;response&quot;" not in card for card in cards)
 
 
+def rendered_markdown(display_capture) -> list[str]:
+    values: list[str] = []
+    for call in display_capture.calls:
+        candidates = [call.value]
+        if call.handle is not None:
+            candidates.extend(call.handle.updates)
+        values.extend(
+            value.data for value in candidates if isinstance(value, Markdown)
+        )
+    return values
+
+
 def test_live_responses_stream(live_api: LiveAPI):
     from yhelpers.responses.streaming import jstream
 
@@ -171,7 +183,8 @@ def test_live_responses_code_interpreter(
         live_api.client.responses.create(
             model=live_api.model,
             instructions=(
-                "You must use Code Interpreter and show the exact Python code used."
+                "You must use Code Interpreter, print the numeric result, and show "
+                "the exact Python code used."
             ),
             input=(
                 "Use Python to calculate the sum of the squares from 1 through 100. "
@@ -191,7 +204,19 @@ def test_live_responses_code_interpreter(
     assert response.status == "completed"
     assert "code_interpreter_call" in output_types(response)
     assert any("code_interpreter_call_code" in name for name in stream.event_types)
-    assert_compact_default(display_capture)
+    markdown = rendered_markdown(display_capture)
+    assert any("```python" in value and "sum" in value for value in markdown)
+    assert any("Python output" in value and "338350" in value for value in markdown)
+    cards = [
+        call.value.data
+        for call in display_capture.calls
+        if isinstance(call.value, HTML) and not call.display_id
+    ]
+    assert all(
+        status not in card
+        for card in cards
+        for status in ("starting…", "running Python…", "completed")
+    )
 
 
 def test_live_responses_file_search(

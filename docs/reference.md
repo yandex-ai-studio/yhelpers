@@ -147,10 +147,18 @@ only when details are enabled.
 - Tool calls, search activity, Code Interpreter, and shell activity resolve to
   separate color-map keys.
 - Label-only cards and whitespace-only streamed sections are not displayed.
+- Reasoning-summary part boundaries and intermediate Web/File Search
+  `searching…` statuses are omitted unless `show_details=True`.
+- Code Interpreter `starting…`, `running Python…`, and `completed` lifecycle
+  cards are omitted unless `show_details=True`; source and results remain.
 - Content/item boundaries, terminal events, and stream exhaustion finalize any
   open display as a compatibility fallback.
 - Code Interpreter source uses a `python` fence and shell commands use `bash`.
   With `show_details=True`, function/MCP/custom-tool arguments use `json`.
+- Code Interpreter log outputs use a `text` fence labeled `Python output` and
+  observe `max_chars`. Callers must request
+  `include=["code_interpreter_call.outputs"]`; image outputs are shown as a
+  compact URL card.
 - When content contains a triple-backtick sequence, the outer Markdown fence is
   lengthened so the code remains valid.
 - Agents raw output-item events and semantic `tool_called` events are

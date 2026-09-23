@@ -27,3 +27,9 @@
 - Added a partial `colormap` override and a `show_reasoning` switch to both
   streaming helpers.
 - Suppressed label-only cards and whitespace-only streamed blocks.
+- Suppressed compact reasoning-part boundary cards and intermediate Web/File
+  Search `searching` status cards.
+- Added Code Interpreter execution-log rendering alongside streamed Python
+  source, with offline and live coverage of both displays.
+- Suppressed Code Interpreter starting, interpreting, and completed lifecycle
+  cards from the compact view while retaining them in diagnostic mode.

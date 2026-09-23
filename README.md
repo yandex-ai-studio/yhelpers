@@ -11,6 +11,11 @@ are visible, while protocol lifecycle events, usage accounting, and JSON
 payloads stay hidden until requested. Model answers use slightly larger black
 type; reasoning is light gray; and tool, search, Code Interpreter, and shell
 activity use distinct compact styles. Empty label-only blocks are omitted.
+Reasoning-part boundary events and transient search statuses such as
+`searching…` are also hidden in the compact view, as are Code Interpreter
+`starting…`, `running Python…`, and `completed` lifecycle cards. Code
+Interpreter displays both the generated Python and non-empty execution logs
+when outputs are included in the response.
 
 ## Installation
 
@@ -50,6 +55,19 @@ stream = client.responses.create(
 )
 response = jstream(stream)
 print(response.id)
+```
+
+To display Code Interpreter results as well as its source, request outputs:
+
+```python
+stream = client.responses.create(
+    model=f"gpt://{folder_id}/qwen3-235b-a22b-fp8",
+    input="Use Python to sum the squares from 1 through 100 and print the result.",
+    include=["code_interpreter_call.outputs"],
+    tools=[{"type": "code_interpreter", "container": {"type": "auto"}}],
+    stream=True,
+)
+response = jstream(stream)
 ```
 
 ## Agents SDK streaming

@@ -139,10 +139,39 @@ def test_tool_category_includes_tool_output_items(display_capture):
 @pytest.mark.parametrize(
     ("category", "sample"),
     [
-        ("reasoning", event("response.reasoning_summary_part.added", item_id="r_1")),
+        (
+            "reasoning",
+            event(
+                "response.reasoning_text.done",
+                item_id="r_1",
+                output_index=0,
+                content_index=0,
+                text="Useful reasoning",
+            ),
+        ),
         ("tools", event("response.mcp_call.in_progress", item_id="mcp_1")),
-        ("search", event("response.file_search_call.searching", item_id="fs_1")),
-        ("code", event("response.code_interpreter_call.in_progress", item_id="ci_1")),
+        (
+            "search",
+            event(
+                "response.output_item.done",
+                output_index=0,
+                item=SimpleNamespace(
+                    type="web_search_call",
+                    id="ws_1",
+                    status="completed",
+                    action=SimpleNamespace(query="Python docs", queries=None),
+                ),
+            ),
+        ),
+        (
+            "code",
+            event(
+                "response.code_interpreter_call_code.done",
+                item_id="ci_1",
+                output_index=0,
+                code="print(1)",
+            ),
+        ),
         (
             "media",
             event(
@@ -320,8 +349,8 @@ def test_default_tool_output_is_compact_and_deduplicated(display_capture):
     )
 
     rendered = [call.value.data for call in display_capture.calls]
-    assert len(rendered) == 2
-    assert any("searching" in value for value in rendered)
+    assert len(rendered) == 1
+    assert all("searching" not in value for value in rendered)
     assert any("current Python documentation" in value for value in rendered)
     assert all("<pre" not in value for value in rendered)
     assert all("response." not in value for value in rendered)
@@ -444,7 +473,16 @@ def test_partial_colormap_merges_defaults_and_distinguishes_tools(display_captur
     jstream(
         [
             event("response.output_item.done", output_index=0, item=function),
-            event("response.web_search_call.searching", item_id="search_1"),
+            event(
+                "response.output_item.done",
+                output_index=1,
+                item=SimpleNamespace(
+                    type="web_search_call",
+                    id="search_1",
+                    status="completed",
+                    action=SimpleNamespace(query="documentation", queries=None),
+                ),
+            ),
             event(
                 "response.code_interpreter_call_code.delta",
                 item_id="code_1",
@@ -486,7 +524,9 @@ def test_partial_colormap_merges_defaults_and_distinguishes_tools(display_captur
         if isinstance(call.value, HTML)
     ]
     assert any("#111111" in value and "lookup" in value for value in html_values)
-    assert any("#0f766e" in value and "searching" in value for value in html_values)
+    assert any(
+        "#0f766e" in value and "documentation" in value for value in html_values
+    )
     assert any("#333333" in value and "print(1)" in value for value in html_values)
     assert any("#444444" in value and "pwd" in value for value in html_values)
 
@@ -513,3 +553,61 @@ def test_whitespace_only_segment_is_not_displayed(display_capture):
         events={"reasoning"},
     )
     assert display_capture.calls == []
+
+
+def test_uninformative_progress_events_are_hidden(display_capture):
+    jstream(
+        [
+            event(
+                "response.reasoning_summary_part.done",
+                item_id="reasoning_1",
+                output_index=0,
+                summary_index=0,
+            ),
+            event("response.web_search_call.searching", item_id="search_1"),
+            event("response.code_interpreter_call.in_progress", item_id="code_1"),
+            event("response.code_interpreter_call.interpreting", item_id="code_1"),
+            event("response.code_interpreter_call.completed", item_id="code_1"),
+            completed(),
+        ]
+    )
+
+    assert display_capture.calls == []
+
+
+def test_code_interpreter_renders_code_and_execution_results(display_capture):
+    code = "result = sum(i * i for i in range(1, 11))\nprint(result)"
+    tool_item = SimpleNamespace(
+        type="code_interpreter_call",
+        id="code_1",
+        status="completed",
+        code=code,
+        outputs=[SimpleNamespace(type="logs", logs="385\n")],
+    )
+    jstream(
+        [
+            event(
+                "response.code_interpreter_call_code.delta",
+                item_id="code_1",
+                output_index=0,
+                delta=code,
+            ),
+            event(
+                "response.code_interpreter_call_code.done",
+                item_id="code_1",
+                output_index=0,
+                code=code,
+            ),
+            event("response.output_item.done", output_index=0, item=tool_item),
+            completed(),
+        ]
+    )
+
+    markdown = [
+        value.data
+        for call in display_capture.calls
+        for value in ([call.value] + (call.handle.updates if call.handle else []))
+        if isinstance(value, Markdown)
+    ]
+    assert any("```python" in value and "print(result)" in value for value in markdown)
+    assert any("Python output" in value and "385" in value for value in markdown)

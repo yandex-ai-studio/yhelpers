@@ -162,8 +162,9 @@ async def test_raw_and_semantic_hosted_tool_events_are_deduplicated(display_capt
 
     await jstream(result)
     rendered = [call.value.data for call in display_capture.calls]
-    assert len(rendered) == 2
+    assert len(rendered) == 1
     assert sum("Python documentation" in value for value in rendered) == 1
+    assert all("searching" not in value for value in rendered)
     assert all("<pre" not in value for value in rendered)
 
 

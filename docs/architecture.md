@@ -37,6 +37,15 @@ coding-agent preset that excludes lifecycle, usage, and unknown protocol noise;
 diagnostic body and streamed sections containing only whitespace are discarded,
 so protocol shells do not produce label-only output.
 
+The compact renderer also suppresses reasoning-part boundaries and transient
+Web/File Search `searching` states. Their completed tool items carry the useful
+query or result context; `show_details=True` restores the lower-level events for
+diagnostics.
+
+Code Interpreter `in_progress`, `interpreting`, and `completed` lifecycle
+events are likewise diagnostic-only. The compact view retains the generated
+source and execution outputs, which contain the actionable information.
+
 Presentation styles are semantic rather than tied directly to SDK class names.
 Normal model text uses a larger black style; auxiliary content uses a smaller
 style. Search, generic tools, Code Interpreter, and shell activity have distinct
@@ -48,6 +57,12 @@ native Markdown rendering while inheriting the semantic color and font size.
 `show_reasoning` is checked after event classification and before selection.
 Consequently it suppresses reasoning regardless of category, exact-name,
 wrapper, or `all` selection without changing stream consumption.
+
+Code Interpreter source remains a coalesced delta segment. Execution logs are
+available only on the completed `code_interpreter_call` item when the request
+includes `code_interpreter_call.outputs`; the renderer emits each non-empty log
+as a bounded `Python output` text fence and suppresses the now-redundant
+completed-status card. Output identities prevent duplicate rendering.
 
 Diagnostic serialization is a separate presentation choice. With
 `show_details=False`, event cards contain short summaries and no JSON blocks.

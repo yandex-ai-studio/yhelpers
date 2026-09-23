@@ -233,6 +233,7 @@ class NotebookRenderer:
         self._segments: dict[tuple[Any, ...], _Segment] = {}
         self._response_serial = 0
         self._seen_tool_items: set[str] = set()
+        self._seen_code_outputs: set[str] = set()
         self.saw_output_text = False
 
     def enabled(self, categories: str | Collection[str], *event_names: str) -> bool:
@@ -324,6 +325,12 @@ class NotebookRenderer:
             )
         if not self.enabled(categories, *names):
             return None
+
+        if (
+            event_type == "response.output_item.done"
+            and item_type == "code_interpreter_call"
+        ):
+            self._show_code_interpreter_outputs(item, names)
 
         compact = self._compact_response_event(event_type, event, item_type)
         if compact is None:
@@ -793,6 +800,15 @@ class NotebookRenderer:
         self, event_type: str, event: Any, item_type: str
     ) -> tuple[str, str | None] | None:
         if (
+            event_type
+            in {
+                "response.reasoning_summary_part.added",
+                "response.reasoning_summary_part.done",
+            }
+            and not self.show_details
+        ):
+            return None
+        if (
             event_type in {"response.output_item.added", "response.content_part.added"}
             and not self.show_details
             and self.selector.is_default
@@ -815,6 +831,12 @@ class NotebookRenderer:
                     return None
                 return "Message completed", None
             item = getattr(event, "item", None)
+            if (
+                item_type == "code_interpreter_call"
+                and getattr(item, "outputs", None)
+                and not self.show_details
+            ):
+                return None
             return self._tool_label(item_type), self._tool_summary(item, item_type)
 
         status_events = {
@@ -838,6 +860,18 @@ class NotebookRenderer:
             ),
         }
         if event_type in status_events:
+            if (
+                event_type
+                in {
+                    "response.web_search_call.searching",
+                    "response.file_search_call.searching",
+                    "response.code_interpreter_call.in_progress",
+                    "response.code_interpreter_call.interpreting",
+                    "response.code_interpreter_call.completed",
+                }
+                and not self.show_details
+            ):
+                return None
             label, summary = status_events[event_type]
             noisy = event_type.endswith((".in_progress", ".completed"))
             if noisy and not self.show_details and self.selector.is_default:
@@ -851,6 +885,47 @@ class NotebookRenderer:
         if event_type == "response.error":
             return "Response error", str(getattr(event, "message", ""))
         return self.label_for_event(event_type), self._scalar_summary(event)
+
+    def _show_code_interpreter_outputs(
+        self, item: Any, names: tuple[str, ...]
+    ) -> None:
+        if not self.enabled("code", *names):
+            return
+        identity = self._tool_identity(item) or str(id(item))
+        if identity in self._seen_code_outputs:
+            return
+
+        outputs = getattr(item, "outputs", None) or ()
+        rendered = False
+        for index, output in enumerate(outputs):
+            data = _object_mapping(output)
+            output_type = str(getattr(output, "type", data.get("type", "")))
+            logs = getattr(output, "logs", data.get("logs"))
+            if output_type == "logs" and isinstance(logs, str) and logs.strip():
+                text = self._truncate_text(logs)
+                display(
+                    self._styled_markdown(
+                        self.fenced(text, "text", label="Python output"),
+                        "code_interpreter",
+                    )
+                )
+                rendered = True
+                continue
+
+            url = getattr(output, "url", data.get("url"))
+            if output_type == "image" and url:
+                self.event_card(
+                    "Python image output",
+                    f"code_interpreter.output.{index}",
+                    output,
+                    "code",
+                    summary=str(url),
+                    style_key="code_interpreter",
+                )
+                rendered = True
+
+        if rendered:
+            self._seen_code_outputs.add(identity)
 
     def _compact_agent_item(
         self,
@@ -988,6 +1063,12 @@ class NotebookRenderer:
             return value
         omitted = len(value) - self.max_chars
         return f"{value[: self.max_chars]} … ({omitted} characters omitted)"
+
+    def _truncate_text(self, value: str) -> str:
+        if self.max_chars is None or len(value) <= self.max_chars:
+            return value
+        omitted = len(value) - self.max_chars
+        return f"{value[: self.max_chars]}\n… truncated {omitted} characters"
 
     @staticmethod
     def _terminal_summary(response: Any) -> str | None:
